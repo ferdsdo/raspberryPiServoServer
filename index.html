@@ -1,0 +1,118 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <style>
+      body {
+        margin: 0px;
+        padding: 0px;
+      }
+      #myCanvas {
+        outline: black 3px solid;
+      }
+      @media only screen and (max-width: 992px) {
+        #myCanvas {
+          background-color: lightblue;
+          width: 100%;
+          height: 100%;
+          display: block;
+        }
+}
+
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.min.js"></script>
+  </head>
+  <body>
+    <canvas id="myCanvas" width="640" height="640"></canvas>
+    <!-- SOCKET IO -->
+    
+    <script>
+      const serverAddress = 'localhost:8080';  
+      var prevMousePos;
+      var socket = io(serverAddress);
+      socket.on('connect', () => {
+        console.log(socket.connected); // true
+        socket.emit('hello', 'can you hear me?', 1, 2, 'abc');
+      });
+      // linear conversion
+      // range value to change
+      // isWidth bool: calculate the x or y cord 
+      function convertRange(rangeValue, isWidth, maxRange) {
+        var canvas = document.getElementById("myCanvas");
+        var max = maxRange;
+        if(isWidth) {
+            return (((rangeValue) * 180) / max);
+        } else {
+            return (((rangeValue) * 180) / max);
+        }
+      }
+
+      // JS code that will log the xy mouse position of the mouse
+      function writeMessage(canvas, message) {
+        var context = canvas.getContext('2d');
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.font = '18pt Calibri';
+        context.fillStyle = 'black';
+        context.fillText(message, 10, 25);
+      }
+      function getMousePos(canvas, evt) {
+        var rect = canvas.getBoundingClientRect();
+        return {
+          // x: evt.clientX - rect.left,
+          // y: evt.clientY - rect.top
+          x: clamp(parseInt(convertRange(evt.clientX - rect.left, true, canvas.width)), 0, 180),
+          y: clamp(parseInt(convertRange(evt.clientY - rect.top, false, canvas.height)), 0 ,180)
+        };
+      }
+      var canvas = document.getElementById('myCanvas');
+      var context = canvas.getContext('2d');
+
+      canvas.addEventListener('mousemove', function(evt) {
+        var mousePos = getMousePos(canvas, evt);
+        var message = 'Mouse position: ' + mousePos.x + ',' + mousePos.y;
+        writeMessage(canvas, message);
+        // reduce calls on server
+        // check if cords are same as before
+        // do NOT send if cords are the same
+        if (prevMousePos){
+          if(!(prevMousePos === mousePos)) {
+            socket.emit('message', mousePos.x, mousePos.y); // send to server
+          }
+        } 
+        prevMousePos = mousePos;
+      }, false);
+
+      // taken from: 
+      // https://stackoverflow.com/questions/5842747/how-can-i-use-javascript-to-limit-a-number-between-a-min-max-value/5842770
+      function clamp(num, min, max){
+        const MIN = min || 0;
+        const MAX = max || 180;
+        const parsed = parseInt(num)
+        return Math.min(Math.max(parsed, MIN), MAX);
+      }
+      
+      // for phone
+      // cannot use convert range because the cordinates retrieved can be outside of the canvas
+      function getTouchPos(evt) {
+        return {
+          x: clamp(parseInt(convertRange(event.touches[0].pageX), true, window.screen.width), 0, 180),
+          y: clamp(parseInt(convertRange(event.touches[0].pageY), false, window.screen.height), 0 , 180)
+        };
+      }
+      canvas.addEventListener('touchmove', function(evt) {
+        var mousePos = getTouchPos(evt);
+        var message = 'Touch position: ' + mousePos.x + ',' + mousePos.y;
+        writeMessage(canvas, message);
+        // reduce calls on server
+        // check if cords are same as before
+        // do NOT send if cords are the same
+        if (prevMousePos){
+          if(!(prevMousePos === mousePos)) {
+            socket.emit('message', mousePos.x, mousePos.y); // send to server
+          }
+        } 
+        prevMousePos = mousePos;
+      }, false);
+    </script>
+  </body>
+</html>
+      
